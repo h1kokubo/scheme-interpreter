@@ -8,15 +8,45 @@ int nextid=1;//次の新規シンボルID
 std::map<std::string,int> sm;
 
 struct Expression{
-    //num,name,string,symbol,boolean,func
-    std::vector<Expression*> lst;
+    //num,name,char,symbol,boolean,func
+    std::string exptype;
+    Expression *next, *head;//brothers,children
     double xn;//num
-    std::string xs;//symbol string,string
+    std::string xs;//symbol string
     bool xb;//bool
     int si;//symbol id
+    char xc;//char
 
 };
+//self->next
+//->head->next
+std::vector<Expression*> lst2vec(Expression *head)(
+    std::vector<Expression*> v;
+    for(;;head!=nullptr)(
+        v.push_back(head);
+        head=head->next;
+        v.back()->next=nullptr;
+    )
+    return v;
+)
 
+Expression* vec2lst(std::vector<Expression*> &v){
+    if(v.size()==0)return nullptr;
+    for(int i=0;i<v.size()-1;i++)v[i]->next=v[i+1];
+    return v[0];
+}
+
+Expression* str2lst(std::string s){
+    Expression* res=new Expression();
+    for(int i=s.size()-1;i>=0;i--)(
+        Expression* newhead=new Expression();
+        newhead->next=res->head;
+        res->head=newhead;
+        newhead->exptype="char";
+        newhead->xc=s[i];
+    )
+    return res;
+}
 
 struct Dictionary{
     Dictionary* upper;
@@ -117,9 +147,11 @@ Expression* build(std::vector<std::string> &token,std::vector<std::string> &toke
     for(;i<token.size();i++){
         if(token[i]=="("){
             exp->exptype="list";
+            std::vector<Expression*> v;
             for(i++;token[i]!=")";i++){
-                exp->lst.push_back(build(token,tokentype,i));    
+                v.push_back(build(token,tokentype,i));    
             }
+            exp->head=vec2lst(v);
         }
         else if(tokentype[i]=="name"){
             exp->exptype="name";
@@ -144,7 +176,7 @@ Expression* build(std::vector<std::string> &token,std::vector<std::string> &toke
         }
         else if(tokentype[i]=="string"){
             exp->exptype="string";
-            exp->xs=token[i];
+            exp->head=str2lst(token[i]);
         }
     }
     return exp;
@@ -153,22 +185,43 @@ Expression* build(std::vector<std::string> &token,std::vector<std::string> &toke
 //eval group
 Expression* eval(Expression *exp,Dictionary **upperdict){
     Expression *res=new Expression();
-    Dictionary *dict=upperdict;
+    Dictionary *dict=*upperdict;
     if(exp->exptype!="name"&&exp->exptype!="list"){
         return exp;
     }
-    if(exp->exptype=="name"){
+    else if(exp->exptype=="name"){
         res=searchdict(dict,exp->xs);
         if(res==nullptr){
             return exp;
         }
         else{
+            res->next=exp->next;
             return res;
         }
     }
-    if(exp->exptype=="list"){
-        if(exp->lst.size()==0)return exp->lst;
-        std::vector<Expression*> lst(exp->lst.size());
+    else if(exp->exptype=="list"){
+        if(exp->head==nullptr)return exp;
+        Expression* op=eval(exp->head,dict);
+        if(op->exptype=="func"){
+            assert(op->head!=nullptr);
+            std::vector<Expression*> arg=lst2vec(op->next),dummy=lst2vec(op->head->head),process=lst2vec(op->head->next);
+            assert(arg.size()==dummy.size());
+            for(int i=0;i<arg.size();i++){
+                assert(dummy[i]->exptype=="name");
+                insertdict(&dict,dummy[i]->xs,eval(arg[i],upperdict));
+            }
+            for(int i=0;i<process.size();i++){
+                eval(process[i],dict);
+            }
+            
+        }
+        else if(op->exptype=="name"){
+
+        }
+        else{
+            return exp;
+        }
+        /*std::vector<Expression*> lst(exp->lst.size());
         for(int i=0;i<lst.size();i++){
             lst[i]=eval(exp->lst[i]);
             assert(!((i>0)&&lst[i]->exptype=="name")); 
@@ -196,6 +249,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             //該当なし
             assert(false);
         }
+        */
     }
     return ;
 }
