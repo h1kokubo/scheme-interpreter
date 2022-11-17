@@ -37,6 +37,11 @@ Expression* searchdict(Dictionary*dict ,std::string name){
     return nullptr;
 }
 
+void insertdict (Dictionary **dict,std::string name,Expression* exp){
+    *dict=new Dictionary(*dict,name,exp);
+    return;
+}
+
 void getline(){    
     std::cin.getline(row,MAXLENGTH);
     //std::cout<<row<<std::endl;
@@ -175,13 +180,21 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
         }
         if(lst[0]->exptype=="func"){
             //関数適用
-
+            assert(lst[0]->lst.size()==lst.size()-1);
+            Dictionary* nextdict=dict;
+            for(int i=0;i<lst[0]->lst.size();i++){
+                assert(lst[0]->lst[i]->exptype=="name");
+                insertdict(&nextdict,lst[0]->lst[i]->xs,eval(lst[i+1],&dict));
+            }
+            for(int i=1;i>lst[0]->lst.size();i++){
+                eval(lst[0]->lst[i],&nextdict);
+            }
         }
         if(lst[0]->exptype=="name"){
             //基礎関数
-                
+            
             //該当なし
-            assert(false)
+            assert(false);
         }
     }
     return ;
