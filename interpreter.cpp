@@ -682,7 +682,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 else{
                     res->head=lst1->head;
                     Expression *r=nullptr,*n=res->head;
-                    for(;n!=nullptr;r=n,n=n->next){}
+                    for(;n!=nullptr;r=new Expression(n),n=n->next){}
                     r->next=lst2->head;
                 }
             }
@@ -718,7 +718,95 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 res->xb=(op->next->exptype=="boolean");
             }
             else if(fn=="not"){
-                
+                assert(op->next!=nullptr);
+                res->exptype="boolean";
+                op->next=eval(op->next,&dict);
+                res->xb=!op->next->xb;
+            }
+            else if(fn=="string?"){
+                assert(op->next!=nullptr);
+                res->exptype="boolean";
+                op->next=eval(op->next,&dict);
+                res->xb=(op->next->exptype=="string");
+            }
+            else if(fn=="string-append"){// (string-append str1 str2)
+                assert(op->next!=nullptr);
+                assert(op->next->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                op->next->next=eval(op->next->next,&dict);
+                assert(op->next->exptype=="string");
+                assert(op->next->next->exptype=="string");
+                for(Expression *r=nullptr,*n=op->next;n!=nullptr;r=new Expression(),r->exptype="char",r->xc=n->xc,n=n->next){}
+                r->next=str2->head;
+            }
+            else if(fn=="symbol->string"){
+                assert(op->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                assert(op->next->exptype=="symbol");
+                res->exptype="string";
+                res->xs=op->next->xs;
+            }
+            else if(fn=="string->symbol"){
+                assert(op->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                assert(op->next->exptype=="string");
+                res->exptype="symbol";
+                res->xs=op->next->xs;
+                if((res->si=sm[res->xs])==0){
+                    res->si=nextid;
+                    sm[res->si]=nextid;
+                    nextid++;
+                }
+            }
+            else if(fn=="string->number"){
+                assert(op->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                assert(op->next->exptype=="string");
+                res->exptype="num";
+                res->xn=std::stod(op->next->xs);
+            }
+            else if(fn=="number->string"){
+                assert(op->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                assert(op->next->exptype=="num");
+                res->exptype="string";
+                res->xn=std::to_string(op->next->xs);
+            }
+            else if(fn=="procedure?"){
+                assert(op->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                res->exptype="boolean";
+                res->xb=(op->next->exptype=="func");
+            }
+            else if(fn=="eq?"){
+                assert(op->next!=nullptr);
+                assert(op->next->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                op->next->next=eval(op->next->next,&dict);
+                assert(op->next->exptype=="symbol");
+                assert(op->next->next->exptype=="symbol");
+                res->exptype="boolean";
+                res->xb=(op->next->si==op->next->next->si);
+            }
+            else if(fn=="neq?"){
+                assert(op->next!=nullptr);
+                assert(op->next->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                op->next->next=eval(op->next->next,&dict);
+                assert(op->next->exptype=="symbol");
+                assert(op->next->next->exptype=="symbol");
+                res->exptype="boolean";
+                res->xb=(op->next->si!=op->next->next->si);
+            }
+            else if(fn=="equal?"){
+                assert(op->next!=nullptr);
+                assert(op->next->next!=nullptr);
+                op->next=eval(op->next,&dict);
+                op->next->next=eval(op->next->next,&dict);
+                assert(op->next->exptype=="string");
+                assert(op->next->next->exptype=="string");
+                res->exptype="boolean";
+                res->xb=(op->next->xs==op->next->next->xs);
             }
             else{
                 assert(false);
