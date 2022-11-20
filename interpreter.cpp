@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include <vector>
 #include <cassert>
@@ -73,6 +74,14 @@ Expression* str2lst(std::string &s){
     return res;
 }
 
+std::string lst2str(Expression *head){
+    std::string res="";
+    while(head!=nullptr){
+        res+=std::string(1,head->xc);
+    }
+    return res;
+}
+
 struct Dictionary{
     Dictionary* upper;
     std::string name;
@@ -115,8 +124,23 @@ void getline(){
     //std::cout<<row<<std::endl;
 }
 
+void setline(std::vector<std::string> &v,int i){
+    if(v.size()<=i){
+        std::cout<<"test["<<i<<"] :not exist"<<std::endl;
+        return;
+    }
+    for(int j=0;j<=v[i].size();j++){
+        if(j==v[i].size())row[j]='\0';
+        else row[j]=v[i][j];
+    }
+    return;
+}
+
 bool isexit(){
     return strcmp(row,"exit") == 0;
+}
+bool istest(){
+    return strcmp(row,"test") == 0;
 }
 
 bool iscommentout(std::vector<std::string> &token){
@@ -259,8 +283,9 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
         if(exp->head==nullptr)return exp;
         Expression* op=eval(exp->head,&dict);
         if(op->exptype=="func"){
+            //std::cout<<"func start"<<std::endl;
             assert(op->head!=nullptr);
-            std::vector<Expression*> arg=lst2vec(op->next),dummy=lst2vec(op->head->head),process=lst2vec(op->head->next);
+            std::vector<Expression*> arg=lst2vec(copylst(op->next)),dummy=lst2vec(copylst(op->head->head)),process=lst2vec(copylst(op->head->next));
             assert(arg.size()==dummy.size());
             for(int i=0;i<arg.size();i++){
                 assert(dummy[i]->exptype=="name");
@@ -292,8 +317,10 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                     item->xs=op->next->head->xs;
                     item->head=new Expression();
                     item->head->exptype="list";
-                    item->head->next=copylst(op->next->head->next);
-                    item->head->next->next=op->next->next;
+                    //
+                    item->head->head=copylst(op->next->head->next);
+                    item->head->next=op->next->next;
+                    //
                     insertdict(upperdict,op->next->head->xs,item);
                 }
             }
@@ -320,11 +347,28 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 res->xn=0;
                 assert(op->next!=nullptr);
                 assert(op->next->next!=nullptr);
+                std::vector<Expression*> binds,process;
                 if(op->next->exptype=="name"){
-                    std::vector<Expression*> process=lst2vec(op->next->next);
+                    if(op->next->next->exptype=="list"){
+                        assert(op->next->next->next!=nullptr);
+                        binds=lst2vec(copylst(op->next->next->head));
+                        process=lst2vec(copylst(op->next->next->next));
+                        Dictionary *temp=dict;
+                        for(int i=0;i<binds.size();i++){
+                            assert(binds[i]->exptype=="list");
+                            assert(binds[i]->head!=nullptr);
+                            assert(binds[i]->head->next!=nullptr);
+                            insertdict(&temp,binds[i]->head->xs,eval(binds[i]->head->next,&dict));
+                        }
+                        dict=temp;
+                    }
+                    else{
+                        process=lst2vec(copylst(op->next->next));
+                    }
                     for(int i=0;i<process.size();i++){
                         if(i==process.size()-1){
-                            insertdict(&dict,op->next->xs,eval(process[i],&dict));
+                            insertdict(upperdict,op->next->xs,eval(process[i],&dict));
+                            return wrap(exp,eval(process[i],&dict));
                         }
                         else{
                             eval(process[i],&dict);
@@ -332,20 +376,25 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                     }
                 }
                 else{
-                    assert(op->next->exptype=="list");
-                    Dictionary *temp=dict;
-                    std::vector<Expression*> binds=lst2vec(op->next->head);
-                    for(int i=0;i<binds.size();i++){
-                        assert(binds[i]->exptype=="list");
-                        assert(binds[i]->head!=nullptr);
-                        assert(binds[i]->head!=nullptr);
-                        insertdict(&temp,binds[i]->head->xs,eval(binds[i]->head->next,&dict));
+                    if(op->next->exptype=="list"){
+                        assert(op->next->next!=nullptr);
+                        binds=lst2vec(copylst(op->next->head));
+                        process=lst2vec(copylst(op->next->next));
+                        Dictionary *temp=dict;
+                        for(int i=0;i<binds.size();i++){
+                            assert(binds[i]->exptype=="list");
+                            assert(binds[i]->head!=nullptr);
+                            assert(binds[i]->head->next!=nullptr);
+                            insertdict(&temp,binds[i]->head->xs,eval(binds[i]->head->next,&dict));
+                        }
+                        dict=temp;
                     }
-                    dict=temp;
-                    std::vector<Expression*> process=lst2vec(op->next->next);
+                    else{
+                        process=lst2vec(op->next);
+                    }
                     for(int i=0;i<process.size();i++){
                         if(i==process.size()-1){
-                            insertdict(&dict,op->next->xs,eval(process[i],&dict));
+                            return wrap(exp,eval(process[i],&dict));
                         }
                         else{
                             eval(process[i],&dict);
@@ -358,23 +407,58 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 res->xn=0;
                 assert(op->next!=nullptr);
                 assert(op->next->next!=nullptr);
-                assert(op->next->exptype=="list");
-                std::vector<Expression*> binds=lst2vec(op->next->head);
-                for(int i=0;i<binds.size();i++){
-                    assert(binds[i]->exptype=="list");
-                    assert(binds[i]->head!=nullptr);
-                    assert(binds[i]->head!=nullptr);
-                    insertdict(&dict,binds[i]->head->xs,eval(binds[i]->head->next,&dict));
+                std::vector<Expression*> binds,process;
+                if(op->next->exptype=="name"){
+                    if(op->next->next->exptype=="list"){
+                        assert(op->next->next->next!=nullptr);
+                        binds=lst2vec(copylst(op->next->next->head));
+                        process=lst2vec(copylst(op->next->next->next));
+                        for(int i=0;i<binds.size();i++){
+                            assert(binds[i]->exptype=="list");
+                            assert(binds[i]->head!=nullptr);
+                            assert(binds[i]->head->next!=nullptr);
+                            insertdict(&dict,binds[i]->head->xs,eval(binds[i]->head->next,&dict));
+                        }
+                        
                     }
-                    std::vector<Expression*> process=lst2vec(op->next->next);
+                    else{
+                        process=lst2vec(copylst(op->next->next));
+                    }
                     for(int i=0;i<process.size();i++){
                         if(i==process.size()-1){
-                            insertdict(&dict,op->next->xs,eval(process[i],&dict));
+                            insertdict(upperdict,op->next->xs,eval(process[i],&dict));
+                            return wrap(exp,eval(process[i],&dict));
                         }
                         else{
                             eval(process[i],&dict);
                         }
                     }
+                }
+                else{
+                    if(op->next->exptype=="list"){
+                        assert(op->next->next!=nullptr);
+                        binds=lst2vec(copylst(op->next->head));
+                        process=lst2vec(copylst(op->next->next));
+                        for(int i=0;i<binds.size();i++){
+                            assert(binds[i]->exptype=="list");
+                            assert(binds[i]->head!=nullptr);
+                            assert(binds[i]->head->next!=nullptr);
+                            insertdict(&dict,binds[i]->head->xs,eval(binds[i]->head->next,&dict));
+                        }
+                     
+                    }
+                    else{
+                        process=lst2vec(op->next);
+                    }
+                    for(int i=0;i<process.size();i++){
+                        if(i==process.size()-1){
+                            return wrap(exp,eval(process[i],&dict));
+                        }
+                        else{
+                            eval(process[i],&dict);
+                        }
+                    }
+                }
             }
             else if(fn=="if"){
                 assert(op->next!=nullptr);
@@ -496,7 +580,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="+"){
                 res->exptype="num";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 res->xn=0;
                 for(int i=0;i<v.size();i++){
@@ -507,7 +591,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="-"){
                 res->exptype="num";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 v[0]=eval(v[0],&dict);
                 assert(v[0]->exptype=="num");
@@ -520,7 +604,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="*"){
                 res->exptype="num";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 res->xn=1;
                 for(int i=0;i<v.size();i++){
@@ -531,7 +615,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="/"){
                 res->exptype="num";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 v[0]=eval(v[0],&dict);
                 assert(v[0]->exptype=="num");
@@ -544,7 +628,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="="){
                 res->exptype="boolean";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 v[0]=eval(v[0],&dict);
                 assert(v[0]->exptype=="num");
@@ -557,7 +641,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="<"){
                 res->exptype="boolean";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 v[0]=eval(v[0],&dict);
                 assert(v[0]->exptype=="num");
@@ -570,7 +654,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="<="){
                 res->exptype="boolean";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 v[0]=eval(v[0],&dict);
                 assert(v[0]->exptype=="num");
@@ -583,7 +667,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn==">"){
                 res->exptype="boolean";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 v[0]=eval(v[0],&dict);
                 assert(v[0]->exptype=="num");
@@ -596,7 +680,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn==">="){
                 res->exptype="boolean";
-                std::vector<Expression*> v=lst2vec(op->next);
+                std::vector<Expression*> v=lst2vec(copylst(op->next));
                 assert(v.size()>=2);
                 v[0]=eval(v[0],&dict);
                 assert(v[0]->exptype=="num");
@@ -764,14 +848,14 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 op->next=eval(op->next,&dict);
                 assert(op->next->exptype=="symbol");
                 res->exptype="string";
-                res->xs=op->next->xs;
+                res->head=str2lst(op->next->xs)->head;
             }
             else if(fn=="string->symbol"){
                 assert(op->next!=nullptr);
                 op->next=eval(op->next,&dict);
                 assert(op->next->exptype=="string");
                 res->exptype="symbol";
-                res->xs=op->next->xs;
+                res->xs=lst2str(op->next->head);
                 if((res->si=sm[res->xs])==0){
                     res->si=nextid;
                     sm[res->xs]=nextid;
@@ -893,14 +977,14 @@ void proc(){
     //tokenize input
     std::vector<std::string> token,tokentype;
     tokenize(token,tokentype);
-    print(token);
-    print(tokentype);
+    //print(token);
+    //print(tokentype);
     if(iscommentout(token))return;
     //construct expression tree
     Expression *exp,*result;
     int i=0;
     exp=build(token,tokentype,i);
-    print(exp);
+    //print(exp);
     //std::cout<<"end"<<std::endl;
     //evaluate expression tree
     result=eval(exp,&Top);
@@ -908,11 +992,37 @@ void proc(){
     return ;
 }
 
+void testmode(){
+    std::ifstream reading_file;
+    reading_file.open("test.txt",std::ios::in);
+    std::string line;
+    std::vector<std::string> testlst;
+    while(std::getline(reading_file,line)){
+        testlst.push_back(line);
+        line=std::string();
+    }
+    std::cout<<"test-mode"<<std::endl;
+    std::cout<<testlst.size()<<" tests exist"<<std::endl;
+    for(;;){
+        getline();
+        if(isexit())break;
+        std::cout<<"test"<<std::stoi(row)<<" begin"<<std::endl;
+        setline(testlst,std::stoi(row)-1);
+        proc();
+    }
+    return;
+}
+
 int main(){
     for(;;){
         getline();
         if(isexit())break;
-        proc();
+        if(istest()){
+            testmode();
+        }
+        else{
+            proc();
+        }
     }
     return 0;
 }

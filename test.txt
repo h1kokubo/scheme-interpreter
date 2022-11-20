@@ -1,0 +1,13 @@
+(define (f x y) (+ x y)) ;+の書き換え
+(f 9 9);//適用
+(+ 5 5);足し算
+(define x 5);
+(define y 8);
+(* (+ x y) (/ x y) (- x y));複合
+(set! x 8);set
+(= x y);=
+(let x ((y 2) (z 3))(+ y z));let1
+(let ((y 2) (z 3))(+ y z));let2
+(let* x ((y 2) (z y))(+ y z));let*1
+(let* ((y 2) (z y))(+ y z));let*2
+x;
