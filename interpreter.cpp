@@ -630,13 +630,15 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 res->head->xs="list";
                 assert(op->next!=nullptr);
                 assert(op->next->next!=nullptr);
-                res->head->next=op->next->next;
+                res->head->next=copylst(op->next->next);
                 if(op->next->exptype=="list")res->head->head=copylst(op->next->head);
                 else {
                     res->head->head=new Expression();
                     res->head->head->exptype="name";
                     res->head->head->xs=op->next->xs;
                 }
+                //print(res->head->next);
+                //print(res->head->head);
             }
             else if(fn=="number?"){
                 res->exptype="boolean";
@@ -780,21 +782,23 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 res->xb=(r->exptype=="symbol");
             }
             else if(fn=="car"){
+                op->next=eval(op->next,&dict);
                 assert(op->next->exptype=="list");
-                return eval(op->next->head,&dict);
+                return op->next->head;
             }
             else if(fn=="cdr"){
+                op->next=eval(op->next,&dict);
                 assert(op->next->exptype=="list");
                 assert(op->next->head!=nullptr);
                 res->exptype="list";
                 res->head=op->next->head->next;
             }
             else if(fn=="cons"){
-                assert(op->next->head!=nullptr);
-                assert(op->next->head->next!=nullptr);
+                assert(op->next!=nullptr);
+                assert(op->next->next!=nullptr);
                 res->exptype="list";
-                res->head=eval(op->next->head,&dict);
-                res->head->next=eval(op->next->head->next,&dict);
+                res->head=eval(op->next,&dict);
+                res->head->next=eval(op->next->next,&dict);
             }
             else if(fn=="list"){
                 res->exptype="list";
@@ -806,7 +810,8 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="length"){
                 res->exptype="num";
-                std::vector<Expression*> v=lst2vec(op->next);
+                op->next=eval(op->next,&dict);
+                std::vector<Expression*> v=lst2vec(copylst(op->next->head));
                 res->xn=v.size();
             }
             else if(fn=="memq"){
@@ -831,9 +836,10 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             }
             else if(fn=="last"){
                 assert(op->next!=nullptr);
+                op->next=eval(op->next,&dict);
                 assert(op->next->exptype=="list");
                 Expression *r=nullptr,*n=op->next->head;
-                for(;n!=nullptr;r=eval(n,&dict),n=n->next){}
+                for(;n!=nullptr;r=n,n=n->next){}
                 res=r;
             }
             else if(fn=="append"){//(append lst1 lst2)
@@ -843,14 +849,15 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 assert(op->next->next!=nullptr);
                 assert(op->next->next->exptype=="list");
                 Expression *lst1=eval(op->next,&dict),*lst2=eval(op->next->next,&dict);
-                
+                assert(lst1->exptype=="list");
+                assert(lst2->exptype=="list");
                 if(lst1->head==nullptr){
                     res->head=lst2->head;
                 }
                 else{
-                    res->head=lst1->head;
+                    res->head=copylst(lst1->head);
                     Expression *r=nullptr,*n=res->head;
-                    for(;n!=nullptr;r=new Expression(n),n=n->next){}
+                    for(;n!=nullptr;r=n,n=n->next){}
                     r->next=lst2->head;
                 }
             }
@@ -863,7 +870,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 assert(op->next->next->head!=nullptr);
                 Expression *temp=op->next->next->head;
                 op->next->next->head=op->next;
-                op->next->next=temp;
+                op->next->next=temp->next;
                 res->exptype="num";
                 res->xn=0;
             }

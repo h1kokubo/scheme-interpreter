@@ -1,12 +1,14 @@
 (define (f x y) (+ x y)) ;関数定義
 (f 9 9);関数適用
 (+ 5 5);+
+(- -9 0.3);負数、少数
 (define x 5);変数定義
 (define x 9);
 (define y 8);
 (* (+ x y) (/ x y) (- x y));+,-,*,/
 (set! x 5);set1
 (set! x 8);set2
+x;
 (= x y);=
 (let x ((y 2) (z 3))(+ y z));let1
 (let ((y 2) (z 3))(+ y z));let2
@@ -20,4 +22,22 @@
 (and (or #t #f) (not #f)); and or not1
 (not (and (or #f #f) (not #f) )); and or not2
 (do ((n x (- n 1))(y 1 z) (z 1 (+ y z)))((= n 1) y)  ); do (fib(x))
-x;
+((lambda (x y) (+ x y 2)) 5 6);lambda1
+((lambda x (+ x y 2)) 5);lambda2
+(number? (+ 5 5));number?1
+(number? (= 5 5));number?2
+(< 2 5);<
+(null? ());null?
+(null? (cdr (list 2)));null?,cdr,list
+(pair? (list 2 5));pair?,list
+(pair? (list 2 5 9));pair?,list
+(cdr (list 9 5));cdr,list
+(car (list (list 5 5) 2));car,list
+(cons 2 5);cons
+(length (list 9 9 #t));length
+(last (list 2 3 8));last
+(append (list 1 2 3) (list 4 5 6));append
+(append () (list 2 3 4));append2
+(define l (list 1 2 3));
+(set-car! 6 l);set-car!
+(set-cdr! l (list 4 5));set-cdr
