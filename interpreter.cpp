@@ -38,7 +38,7 @@ Expression* copylst(Expression *head){
     Expression *res=new Expression();
     res->exptype=head->exptype;
     res->next=copylst(head->next);
-    res->head=head->head;
+    res->head=copylst(head->head);
     res->xn=head->xn;
     res->xs=head->xs;
     res->xb=head->xb;
@@ -263,6 +263,51 @@ Expression* wrap(Expression *exp,Expression *res){
     res->next=exp->next;
     return res;
 }
+
+//print group
+void print(Expression *exp){
+    if(exp==nullptr){
+        std::cout<<"()"<<std::endl;
+    }
+    else{
+        std::string type=exp->exptype;
+        if(type=="num"){
+            std::cout<<exp->xn<<std::endl;
+        }
+        else if(type=="name"){
+            std::cout<<exp->xs<<std::endl;
+        }
+        else if(type=="char"){
+            std::cout<<exp->xc<<std::endl;
+        }
+        else if(type=="symbol"){
+            std::cout<<"id: "<<exp->si<<", string"<<exp->xs<<std::endl;
+        }
+        else if(type=="boolean"){
+            if(exp->xb){
+                std::cout<<"#t"<<std::endl;
+            }
+            else{
+                std::cout<<"#f"<<std::endl;
+            }
+        }
+        else if(type=="func"){
+            std::cout<<"procedure "<<exp<<std::endl;
+        }
+        else if(type=="list"){
+            Expression *now=exp->head;
+            std::cout<<"( ";
+            while(now!=nullptr){
+                print(now);
+                now=now->next;
+            }
+            std::cout<<" )"<<std::endl;
+        }
+
+
+    }
+}
+
 //eval group
 Expression* eval(Expression *exp,Dictionary **upperdict){
     Expression *res=new Expression();
@@ -473,22 +518,29 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 }
             }
             else if(fn=="cond"){
-                std::vector<Expression*> procs=lst2vec(op->next);
+                std::vector<Expression*> procs=lst2vec(copylst(op->next));
                 for(int i=0;i<procs.size();i++){
-                    if(procs[i]->head->xs=="else"){
-                        std::vector<Expression*> process=lst2vec(procs[i]->head->next);
-                        for(int j=0;j>process.size();j++){
+                    assert(procs[i]->head!=nullptr);
+                    assert(procs[i]->head->next!=nullptr);
+                    Expression *ifcond=eval(procs[i]->head,&dict);
+                    if(ifcond->exptype=="name"&&ifcond->xs=="else"){
+                        std::vector<Expression*> process=lst2vec(copylst(procs[i]->head->next));
+                        for(int j=0;j<process.size();j++){
                             if(j==process.size()-1)return wrap(exp,eval(process[j],&dict));
-                            else wrap(exp,eval(process[j],&dict));
+                            else eval(process[j],&dict);
                         }
                     }
-                    Expression *ifcond=eval(procs[i]->head,&dict);
-                    assert(ifcond->exptype=="boolean");
-                    if(ifcond->xb){
-                        std::vector<Expression*> process=lst2vec(procs[i]->head->next);
-                        for(int j=0;j>process.size();j++){
-                            if(j==process.size()-1)return wrap(exp,eval(process[j],&dict));
-                            else wrap(exp,eval(process[j],&dict));
+                    else{
+                        assert(ifcond->exptype=="boolean");
+                        //std::cout<<ifcond->xb<<std::endl;
+                        if(ifcond->xb){
+                            //std::cout<<"inner"<<std::endl;
+                            std::vector<Expression*> process=lst2vec(copylst(procs[i]->head->next));
+                            for(int j=0;j<process.size();j++){
+                                std::cout<<"inner"<<std::endl;
+                                if(j==process.size()-1)return wrap(exp,eval(process[j],&dict));
+                                else eval(process[j],&dict);
+                            }
                         }
                     }
                 }
@@ -527,35 +579,48 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             else if(fn=="do"){
                 assert(op->next!=nullptr);
                 assert(op->next->exptype=="list");
-                std::vector<Expression*> binds=lst2vec(op->next->head),pred=lst2vec(op->next->next);
+                assert(op->next->next!=nullptr);
+                std::vector<Expression*> binds=lst2vec(copylst(op->next->head)),pred=lst2vec(copylst(op->next->next));
+                std::vector<std::vector<Expression*>> bind(binds.size());
+                for(int i=0;i<bind.size();i++){
+                    bind[i]=lst2vec(copylst(binds[i]->head));
+                }
                 Dictionary *temp=dict;
                 for(int i=0;i<binds.size();i++){
-                    assert(binds[i]->exptype=="list");
-                    assert(binds[i]->head!=nullptr);
-                    assert(binds[i]->head->next!=nullptr);
-                    assert(binds[i]->head->next->next!=nullptr);
-                    assert(binds[i]->head->exptype=="name");
-                    insertdict(&temp,binds[i]->head->xs,eval(binds[i]->head->next,&dict));
+                    assert(bind[i].size()==3);
+                    assert(bind[i][0]->exptype=="name");
+                    insertdict(&temp,bind[i][0]->xs,eval(bind[i][1],&dict));
                 }            
                 dict=temp;
+                std::cout<<"binds end"<<std::endl;
                 while(true){
-                    for(int i=0;i<binds.size();i++){
-                        Dictionary *temp=dict;
-                        insertdict(&temp,binds[i]->head->xs,eval(binds[i]->head->next->next,&dict)); 
-                    }
-                    dict=temp;
                     for(int i=0;i<pred.size();i++){
                         if(pred[i]->exptype=="list"){
                             Expression *p=eval(pred[i]->head,&dict);
-                            if(p->exptype=="boolean"&&p->xb){
-                                return wrap(exp,eval(pred[i]->head->next,&dict));
-                            }
-                            else if(p->exptype!="boolean"){
-                                eval(pred[i],&dict);
+                            assert(p!=nullptr);
+                            assert(p->exptype=="boolean");
+                            
+                            if(p->xb){
+                                return eval(pred[i]->head->next,&dict);
                             }
                         }
+                        else eval(pred[i],&dict);
 
                     }
+                    temp=dict;
+                    for(int i=0;i<bind.size();i++){
+                        
+                    }
+
+                    for(int i=0;i<bind.size();i++){
+                        //std::cout<<i<<std::endl;
+                        //print(vec2lst(bind[i]));
+                        //assert(binds[i]->head->next->next!=nullptr);
+                        //Expression* t=binds[i]->head->next->next;
+                        insertdict(&temp,bind[i][0]->xs,eval(bind[i][2],&dict)); 
+                        //binds[i]->head->next->next=t;
+                    }
+                    dict=temp;
                 }
 
             }
@@ -927,47 +992,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
     return nullptr;
 }
 
-//print group
-void print(Expression *exp){
-    if(exp==nullptr){
-        std::cout<<"()"<<std::endl;
-    }
-    else{
-        std::string type=exp->exptype;
-        if(type=="num"){
-            std::cout<<exp->xn<<std::endl;
-        }
-        else if(type=="name"){
-            std::cout<<exp->xs<<std::endl;
-        }
-        else if(type=="char"){
-            std::cout<<exp->xc<<std::endl;
-        }
-        else if(type=="symbol"){
-            std::cout<<"id: "<<exp->si<<", string"<<exp->xs<<std::endl;
-        }
-        else if(type=="boolean"){
-            if(exp->xb){
-                std::cout<<"#t"<<std::endl;
-            }
-            else{
-                std::cout<<"#f"<<std::endl;
-            }
-        }
-        else if(type=="func"){
-            std::cout<<"procedure "<<exp<<std::endl;
-        }
-        else if(type=="list"){
-            Expression *now=exp->head;
-            while(now!=nullptr){
-                print(now);
-                now=now->next;
-            }
-        }
 
-
-    }
-}
 
 Dictionary *Top=NULL;
 

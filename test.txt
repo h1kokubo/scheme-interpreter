@@ -1,13 +1,23 @@
-(define (f x y) (+ x y)) ;+の書き換え
-(f 9 9);//適用
-(+ 5 5);足し算
-(define x 5);
+(define (f x y) (+ x y)) ;関数定義
+(f 9 9);関数適用
+(+ 5 5);+
+(define x 5);変数定義
+(define x 9);
 (define y 8);
-(* (+ x y) (/ x y) (- x y));複合
-(set! x 8);set
+(* (+ x y) (/ x y) (- x y));+,-,*,/
+(set! x 5);set1
+(set! x 8);set2
 (= x y);=
 (let x ((y 2) (z 3))(+ y z));let1
 (let ((y 2) (z 3))(+ y z));let2
 (let* x ((y 2) (z y))(+ y z));let*1
 (let* ((y 2) (z y))(+ y z));let*2
+(if (= x 5) (set! x 8) (set! x 5)); = ,if
+(if #t (+ 5 2) (* 5 2));#t
+(if #f (+ 5 2) (* 5 2));#f
+(cond ((= x 5) 3) ((= x 8) 5) (else (+ 3 5)));cond
+(and #t #t);and1
+(and (or #t #f) (not #f)); and or not1
+(not (and (or #f #f) (not #f) )); and or not2
+(do ((n x (- n 1))(y 1 z) (z 1 (+ y z)))((= n 1) y)  ); do (fib(x))
 x;
