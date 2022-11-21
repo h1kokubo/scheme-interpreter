@@ -40,4 +40,8 @@ x;
 (append () (list 2 3 4));append2
 (define l (list 1 2 3));
 (set-car! 6 l);set-car!
-(set-cdr! l (list 4 5));set-cdr
+(set-cdr! l (list 4 5));set-cdr!
+(boolean? (= 3 (+ 1 2)));boolean?WSS
+(string? 'hello' );string?
+(string-append 'good' 'moring');string-append
+'good';string

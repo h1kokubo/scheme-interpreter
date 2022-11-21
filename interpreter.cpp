@@ -78,6 +78,7 @@ std::string lst2str(Expression *head){
     std::string res="";
     while(head!=nullptr){
         res+=std::string(1,head->xc);
+        head=head->next;
     }
     return res;
 }
@@ -184,16 +185,18 @@ void tokenize(std::vector<std::string> &token,std::vector<std::string> &tokentyp
         }
         else if(row[i]=='\''&&!isescaped(i)){
             token.push_back("");
+            i++;
             while(row[i]!=' '&&row[i]!='('&&row[i]!=')'&&row[i]!='\0'&&(row[i]!='\''||isescaped(i))&&row[i]!=';'){
                 token.back()+=std::string(1,row[i]);
                 i++;
             }
-            if(row[i]!='\''||isescaped(i)){
-                tokentype.push_back("symbol");
+            if(row[i]=='\''&&!isescaped(i)){
+                tokentype.push_back("string");
+                i++;
             }
             else{
-                tokentype.push_back("string");
-            }
+                tokentype.push_back("symbol");
+            }    
             continue;
         }
         else if(row[i]!=' '){
@@ -203,6 +206,7 @@ void tokenize(std::vector<std::string> &token,std::vector<std::string> &tokentyp
                 token.back()+=std::string(1,row[i]);
                 i++;
             }
+            
             if(isnegativeval(token.back())){
                 tokentype.back()="num";
             }
@@ -302,6 +306,11 @@ void print(Expression *exp){
                 now=now->next;
             }
             std::cout<<" )"<<std::endl;
+        }
+        else if(type=="string"){
+            assert(exp->head!=nullptr);
+            std::string s=lst2str(exp->head);
+            std::cout<<s<<std::endl;
         }
 
 
@@ -901,6 +910,7 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
             else if(fn=="string?"){
                 assert(op->next!=nullptr);
                 res->exptype="boolean";
+                //std::cout<<"ok"<<std::endl;
                 op->next=eval(op->next,&dict);
                 res->xb=(op->next->exptype=="string");
             }
@@ -911,9 +921,16 @@ Expression* eval(Expression *exp,Dictionary **upperdict){
                 op->next->next=eval(op->next->next,&dict);
                 assert(op->next->exptype=="string");
                 assert(op->next->next->exptype=="string");
-                Expression *r=nullptr,*n=op->next;
-                for(;n!=nullptr;r=new Expression(),r->exptype="char",r->xc=n->xc,n=n->next){}
-                r->next=op->next->next->head;
+                Expression *r=nullptr,*n=op->next->head;
+                res->exptype="string";
+                if(n==nullptr){
+                    res->head=op->next->next->head;
+                }
+                else{
+                    res->head=copylst(op->next->head);
+                    for(;n!=nullptr;r=n,n=n->next){}
+                    r->next=op->next->next->head;
+                } 
             }
             else if(fn=="symbol->string"){
                 assert(op->next!=nullptr);
@@ -1009,8 +1026,8 @@ void proc(){
     //tokenize input
     std::vector<std::string> token,tokentype;
     tokenize(token,tokentype);
-    //print(token);
-    //print(tokentype);
+    print(token);
+    print(tokentype);
     if(iscommentout(token))return;
     //construct expression tree
     Expression *exp,*result;
@@ -1041,6 +1058,7 @@ void testmode(){
         std::cout<<"test"<<std::stoi(row)<<" begin"<<std::endl;
         setline(testlst,std::stoi(row)-1);
         proc();
+        std::cout<<"end"<<std::endl;
     }
     return;
 }
