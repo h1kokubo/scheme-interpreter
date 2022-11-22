@@ -43,5 +43,6 @@ x;
 (set-cdr! l (list 4 5));set-cdr!
 (boolean? (= 3 (+ 1 2)));boolean?WSS
 (string? 'hello' );string?
-(string-append 'good' 'moring');string-append ※なぜか表示できない
-'good';string ※なぜか表示できない    symbol と string 関係以外
+(string-append 'good' 'moring');string-append 
+'good';string 
+(begin (define x 5) (+ x 8));begin
